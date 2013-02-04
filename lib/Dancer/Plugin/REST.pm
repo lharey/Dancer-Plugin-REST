@@ -48,8 +48,7 @@ register prepare_serializer_for_format => sub {
 };
 
 register resource => sub {
-    my ($resource, %triggers) = @_;
-
+    my (undef, $resource, %triggers) = plugin_args(@_);
     croak "resource should be given with triggers"
       unless defined $resource
           and defined $triggers{get}
@@ -71,7 +70,7 @@ register resource => sub {
 };
 
 register send_entity => sub {
-    my ($entity, $http_code) = @_;
+    my (undef, $entity, $http_code) = plugin_args(@_);
 
     $http_code ||= 200;
 
@@ -152,16 +151,24 @@ for my $code (keys %http_codes) {
     $helper_name = "status_${helper_name}";
 
     register $helper_name => sub {
+        my ($self, $msg) = plugin_args(@_);
+        my @args;
         if ($code >= 400) {
-            send_entity({error => $_[0]}, $code);
+            @args = ({error => $msg}, $code);
         }
         else {
-            send_entity($_[0], $code);
+            @args = ($msg, $code);
+        }
+        if ( $self ) {
+            $self->send_entity(@args);
+        }
+        else {
+            send_entity(@args);
         }
     };
 }
 
-register_plugin;
+register_plugin for_versions => [ 1, 2 ];
 1;
 __END__
 
